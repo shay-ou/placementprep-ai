@@ -1,5 +1,6 @@
 import Groq from "groq-sdk";
 import { NextRequest, NextResponse } from "next/server";
+import { supabase } from "@/lib/supabase";
 
 const groq = new Groq({
     apiKey: process.env.GROQ_API_KEY,
@@ -36,9 +37,37 @@ INSTRUCTIONS:
 
         const text = response.choices[0]?.message?.content || "";
         const cleaned = text.replace(/```json|```/g, "").trim();
-        const questions = JSON.parse(cleaned);
+        const questions: string[] = JSON.parse(cleaned);
 
-        return NextResponse.json({ questions });
+        // Save interview session to Supabase
+        const { data: interview, error: interviewError } = await supabase
+            .from("interviews")
+            .insert({ resume, job_description: jobDescription })
+            .select()
+            .single();
+
+        if (interviewError) {
+            console.error("Supabase insert error:", interviewError);
+            throw interviewError;
+        }
+
+        // Save each question linked to this session
+        const questionRows = questions.map((q, index) => ({
+            interview_id: interview.id,
+            question_text: q,
+            sort_order: index,
+        }));
+
+        const { error: questionsError } = await supabase
+            .from("interview_questions")
+            .insert(questionRows);
+
+        if (questionsError) {
+            console.error("Supabase questions error:", questionsError);
+            throw questionsError;
+        }
+
+        return NextResponse.json({ questions, interviewId: interview.id });
 
     } catch (error) {
         console.error("Groq error:", error);

@@ -22,7 +22,7 @@ export default function UploadPage() {
         localStorage.setItem("jobDescription", jobDescription);
 
         // Navigate to interview page
-        router.push("/Interview");
+        router.push("/interview");
     }
 
     return (

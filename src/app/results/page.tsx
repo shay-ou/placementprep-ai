@@ -20,28 +20,18 @@ export default function ResultsPage() {
 
     useEffect(() => {
         async function getFeedback() {
-            const storedQuestions = localStorage.getItem("questions");
-            const storedAnswers = localStorage.getItem("answers");
+            const interviewId = localStorage.getItem("interviewId");
 
-            if (!storedQuestions || !storedAnswers) {
+            if (!interviewId) {
                 router.push("/upload");
                 return;
             }
-
-            const parsedQuestions = JSON.parse(storedQuestions);
-            const parsedAnswers = JSON.parse(storedAnswers);
-
-            setQuestions(parsedQuestions);
-            setAnswers(parsedAnswers);
 
             try {
                 const response = await fetch("/api/generate-feedback", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        questions: parsedQuestions,
-                        answers: parsedAnswers
-                    }),
+                    body: JSON.stringify({ interviewId }),
                 });
 
                 const data = await response.json();
@@ -51,6 +41,8 @@ export default function ResultsPage() {
                     return;
                 }
 
+                setQuestions(data.questions);
+                setAnswers(data.answers);
                 setFeedback(data.feedback);
             } catch (err) {
                 setError("Something went wrong. Please try again.");
@@ -65,8 +57,7 @@ export default function ResultsPage() {
     function handleRestart() {
         localStorage.removeItem("resume");
         localStorage.removeItem("jobDescription");
-        localStorage.removeItem("questions");
-        localStorage.removeItem("answers");
+        localStorage.removeItem("interviewId");
         router.push("/upload");
     }
 
@@ -90,7 +81,6 @@ export default function ResultsPage() {
         );
     }
 
-    // Calculate overall average score
     const avgScore = feedback.length > 0
         ? (feedback.reduce((sum, f) => sum + f.score, 0) / feedback.length).toFixed(1)
         : "0";

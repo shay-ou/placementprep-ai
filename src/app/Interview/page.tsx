@@ -2,14 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
 export default function InterviewPage() {
     const router = useRouter();
-
     const [questions, setQuestions] = useState<string[]>([]);
+    const [questionIds, setQuestionIds] = useState<string[]>([]);
+    const [interviewId, setInterviewId] = useState("");
     const [currentIndex, setCurrentIndex] = useState(0);
     const [answer, setAnswer] = useState("");
-    const [allAnswers, setAllAnswers] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
@@ -38,6 +39,19 @@ export default function InterviewPage() {
                 }
 
                 setQuestions(data.questions);
+                setInterviewId(data.interviewId);
+                localStorage.setItem("interviewId", data.interviewId);
+
+                const { data: savedQuestions } = await supabase
+                    .from("interview_questions")
+                    .select("id")
+                    .eq("interview_id", data.interviewId)
+                    .order("sort_order", { ascending: true });
+
+                if (savedQuestions) {
+                    setQuestionIds(savedQuestions.map((q) => q.id));
+                }
+
             } catch (err) {
                 setError("Something went wrong. Please try again.");
             } finally {
@@ -48,21 +62,27 @@ export default function InterviewPage() {
         generateQuestions();
     }, []);
 
-    function handleNext() {
+    async function handleNext() {
         if (!answer.trim()) {
             alert("Please write an answer first");
             return;
         }
 
-        const updatedAnswers = [...allAnswers, answer];
-        setAllAnswers(updatedAnswers);
+        await supabase
+            .from("interview_questions")
+            .update({ user_answer: answer })
+            .eq("id", questionIds[currentIndex]);
+
         setAnswer("");
 
         if (currentIndex + 1 < questions.length) {
             setCurrentIndex(currentIndex + 1);
         } else {
-            localStorage.setItem("answers", JSON.stringify(updatedAnswers));
-            localStorage.setItem("questions", JSON.stringify(questions));
+            await supabase
+                .from("interviews")
+                .update({ status: "completed" })
+                .eq("id", interviewId);
+
             router.push("/results");
         }
     }
@@ -80,10 +100,7 @@ export default function InterviewPage() {
         return (
             <main className="flex flex-col items-center justify-center min-h-[60vh]">
                 <p className="text-red-500 mb-4">{error}</p>
-                <button
-                    onClick={() => router.push("/upload")}
-                    className="text-sm underline"
-                >
+                <button onClick={() => router.push("/upload")} className="text-sm underline">
                     Go back and try again
                 </button>
             </main>
@@ -92,36 +109,30 @@ export default function InterviewPage() {
 
     return (
         <main className="max-w-2xl mx-auto px-4 py-12">
-
             <p className="text-sm text-gray-400 mb-2">
                 Question {currentIndex + 1} of {questions.length}
             </p>
-
             <div className="w-full bg-gray-100 rounded-full h-1.5 mb-8">
                 <div
                     className="bg-black h-1.5 rounded-full transition-all"
                     style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}
                 />
             </div>
-
             <h2 className="text-xl font-semibold mb-6">
                 {questions[currentIndex]}
             </h2>
-
             <textarea
                 className="w-full h-40 p-3 border border-gray-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-black mb-6"
                 placeholder="Type your answer here..."
                 value={answer}
                 onChange={(e) => setAnswer(e.target.value)}
             />
-
             <button
                 onClick={handleNext}
                 className="bg-black text-white px-6 py-3 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors w-full"
             >
                 {currentIndex + 1 === questions.length ? "See Results →" : "Next Question →"}
             </button>
-
         </main>
     );
 }
