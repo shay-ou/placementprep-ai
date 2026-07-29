@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ResumeUpload } from "@/components/ResumeUpload";
 
 export default function UploadPage() {
     const router = useRouter();
@@ -17,11 +18,9 @@ export default function UploadPage() {
 
         setLoading(true);
 
-        // Save to localStorage so interview page can read it
         localStorage.setItem("resume", resume);
         localStorage.setItem("jobDescription", jobDescription);
 
-        // Navigate to interview page
         router.push("/interview");
     }
 
@@ -36,6 +35,15 @@ export default function UploadPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                     Your Resume
                 </label>
+
+                {/* PDF upload option */}
+                <div className="mb-3">
+                    <ResumeUpload onParsed={(text) => setResume(text)} />
+                    <p className="text-xs text-gray-400 mt-1">
+                        Upload a PDF, or paste your resume text below
+                    </p>
+                </div>
+
                 <textarea
                     className="w-full h-48 p-3 border border-gray-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-black"
                     placeholder="Paste your resume text here..."
